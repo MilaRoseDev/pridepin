@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-06-23
+
+### Added
+
+#### Map Filter UI
+- Floating 🔍 Filters button in the top-left of the map
+- Filter panel with category chips (all 10 categories) and safety tag chips (all 11 tags)
+- Single-select per group — click a chip to activate, click again to deactivate
+- Filters can be combined (e.g. category=HEALTHCARE + tag=TRANS_HEALTHCARE)
+- Active filter count badge on the Filters button
+- "Clear all filters" button resets both filters and reloads all locations
+- Panel closes automatically when clicking outside it
+- Map markers reload instantly when any filter changes
+
+---
+
 ## [1.2.0] - 2026-05-31
 
 ### Added
