@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PridePin 🏳️‍⚧️ — Safe Space Map</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+  <style>
+    /* ── Layout ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0d0d1a;
+      color: #e8e8f0;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Navbar ─────────────────────────────────────────────────────── */
+    #navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      height: 54px;
+      background: linear-gradient(90deg, #1a0030 0%, #12002a 100%);
+      border-bottom: 1px solid #3a1060;
+      z-index: 1000;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #c77dff;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .nav-actions { display: flex; align-items: center; gap: 0.6rem; }
+
+    .btn-nav {
+      padding: 0.3rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid;
+      transition: all 0.15s;
+    }
+
+    .btn-nav-outline {
+      background: transparent;
+      border-color: #7b2d8b;
+      color: #d4a6ff;
+    }
+    .btn-nav-outline:hover { background: #3a1060; }
+
+    .btn-nav-primary {
+      background: #7b2d8b;
+      border-color: #7b2d8b;
+      color: #fff;
+    }
+    .btn-nav-primary:hover { background: #9b3dab; border-color: #9b3dab; }
+
+    .btn-nav-success {
+      background: #1a6b3a;
+      border-color: #1a6b3a;
+      color: #b6ffda;
+    }
+    .btn-nav-success:hover { background: #1e8048; border-color: #1e8048; }
+
+    .btn-nav-danger {
+      background: transparent;
+      border-color: #6b1a1a;
+      color: #ffb6b6;
+    }
+    .btn-nav-danger:hover { background: #3d0f0f; }
+
+    #username-display {
+      font-size: 0.82rem;
+      color: #c4a0e8;
+      padding: 0.3rem 0.6rem;
+      background: rgba(123,45,139,0.2);
+      border-radius: 5px;
+    }
+
+    /* ── Main area (map + sidebar) ──────────────────────────────────── */
+    #main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Map ──────────────────────────────────────────────────────────  */
+    #map {
+      flex: 1;
+      position: relative;
+    }
+
+    /* ── Place search ────────────────────────────────────────────────── */
+    #search-container {
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 900;
+      width: min(420px, calc(100vw - 2rem));
+    }
+
+    #search-wrap {
+      display: flex;
+      align-items: center;
+      background: rgba(18, 0, 32, 0.95);
+      border: 1.5px solid #3a1060;
+      border-radius: 10px;
+      padding: 0.35rem 0.75rem;
+      gap: 0.5rem;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+      transition: border-color 0.15s;
+    }
+
+    #search-wrap:focus-within {
+      border-color: #7b2d8b;
+      box-shadow: 0 4px 24px rgba(123,45,139,0.3);
+    }
+
+    #search-icon { color: #7b2d8b; font-size: 1rem; flex-shrink: 0; }
+
+    #search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e0c0ff;
+      font-size: 0.9rem;
+      padding: 0.1rem 0;
+    }
+
+    #search-input::placeholder { color: #5040a0; }
+
+    #search-clear {
+      background: transparent;
+      border: none;
+      color: #5040a0;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0;
+      line-height: 1;
+      display: none;
+    }
+    #search-clear:hover { color: #c77dff; }
+
+    #search-results {
+      display: none;
+      background: rgba(18, 0, 32, 0.97);
+      border: 1.5px solid #3a1060;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      overflow: hidden;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .search-result {
+      padding: 0.6rem 0.9rem;
+      cursor: pointer;
+      font-size: 0.83rem;
+      color: #c0a8d8;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      border-bottom: 1px solid #1a0030;
+      transition: background 0.1s;
+    }
+    .search-result:last-child { border-bottom: none; }
+    .search-result:hover { background: #2a0040; color: #e0c0ff; }
+
+    .search-result-icon { flex-shrink: 0; font-size: 0.95rem; margin-top: 0.05rem; }
+
+    .search-result-name {
+      font-weight: 600;
+      color: #d4a6ff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-result-sub {
+      font-size: 0.75rem;
+      color: #6050a0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-no-results {
+      padding: 0.75rem 0.9rem;
+      font-size: 0.83rem;
+      color: #5040a0;
+      text-align: center;
+    }
+
+    .search-loading {
+      padding: 0.75rem 0.9rem;
+      text-align: center;
+      color: #7b2d8b;
+    }
+
+    /* Pulsing search result marker */
+    .search-marker-pulse {
+      width: 16px; height: 16px;
+      background: #c77dff;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 0 rgba(199,125,255,0.7);
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(199,125,255,0.7); }
+      70%  { box-shadow: 0 0 0 10px rgba(199,125,255,0); }
+      100% { box-shadow: 0 0 0 0 rgba(199,125,255,0); }
+    }
+
+    /* Add-location mode cursor */
+    #map.picking { cursor: crosshair !important; }
+    #map.picking .leaflet-container { cursor: crosshair !important; }
+
+    /* ── Add-mode banner ─────────────────────────────────────────────── */
+    #pick-banner {
+      display: none;
+      position: absolute;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(26,0,48,0.92);
+      border: 1.5px solid #7b2d8b;
+      color: #c77dff;
+      padding: 0.55rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      z-index: 500;
+      pointer-events: none;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────  */
+    #sidebar {
+      width: 380px;
+      background: #120020;
+      border-left: 1px solid #3a1060;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.28s ease;
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 400;
+    }
+
+    #sidebar.open { transform: translateX(0); }
+
+    #sidebar-close {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: transparent;
+      border: none;
+      color: #c77dff;
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .sidebar-section { padding: 1.1rem 1.25rem; }
+    .sidebar-section + .sidebar-section { border-top: 1px solid #2a0040; }
+
+    .location-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #e0c0ff;
+      margin: 0 2rem 0.25rem 0;
+    }
+
+    .location-meta {
+      font-size: 0.8rem;
+      color: #9070b0;
+      margin-bottom: 0.5rem;
+    }
+
+    .rating-display {
+      font-size: 1.1rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .stars { color: #f4c430; letter-spacing: 0.05em; }
+    .stars-empty { color: #3a2060; }
+
+    .category-badge {
+      display: inline-block;
+      padding: 0.18rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .location-description {
+      font-size: 0.875rem;
+      color: #c0a8d8;
+      line-height: 1.55;
+    }
+
+    .location-address {
+      font-size: 0.8rem;
+      color: #8060a0;
+    }
+
+    /* ── Reviews ──────────────────────────────────────────────────────  */
+    .review-card {
+      background: rgba(60,0,100,0.25);
+      border: 1px solid #2a0040;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .review-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.3rem;
+    }
+
+    .reviewer-name { font-weight: 600; font-size: 0.85rem; color: #c077e0; }
+    .review-date { font-size: 0.75rem; color: #6050a0; }
+    .review-text { font-size: 0.85rem; color: #c0a8d8; margin-top: 0.3rem; }
+
+    .review-actions { display: flex; gap: 0.4rem; margin-top: 0.4rem; }
+    .btn-tiny {
+      padding: 0.1rem 0.5rem;
+      font-size: 0.72rem;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid;
+    }
+    .btn-tiny-danger { background: transparent; border-color: #6b1a1a; color: #ff9999; }
+    .btn-tiny-danger:hover { background: #3d0f0f; }
+
+    /* ── Section headings ─────────────────────────────────────────────  */
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8060b0;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Review form ──────────────────────────────────────────────────  */
+    .star-picker { display: flex; gap: 0.25rem; margin-bottom: 0.6rem; }
+    .star-btn {
+      font-size: 1.4rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #3a2060;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.1s;
+    }
+    .star-btn.active, .star-btn:hover { color: #f4c430; }
+
+    .form-control-dark {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid #3a1060;
+      color: #e0c0ff;
+      border-radius: 6px;
+      padding: 0.45rem 0.75rem;
+      width: 100%;
+      font-size: 0.875rem;
+      resize: vertical;
+    }
+    .form-control-dark:focus {
+      outline: none;
+      border-color: #7b2d8b;
+      background: rgba(255,255,255,0.09);
+    }
+    .form-control-dark::placeholder { color: #5040a0; }
+
+    .btn-submit {
+      display: inline-block;
+      padding: 0.45rem 1rem;
+      background: #7b2d8b;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-top: 0.5rem;
+      transition: background 0.15s;
+    }
+    .btn-submit:hover { background: #9b3dab; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Toast notifications ──────────────────────────────────────────  */
+    #toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+
+    .toast-msg {
+      padding: 0.65rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      max-width: 300px;
+      animation: slideIn 0.2s ease, fadeOut 0.4s ease 2.8s forwards;
+      pointer-events: none;
+    }
+    .toast-success { background: #0d3d22; border: 1px solid #1a6b3a; color: #80ffb0; }
+    .toast-error   { background: #3d0d0d; border: 1px solid #6b1a1a; color: #ff9090; }
+    .toast-info    { background: #1a0030; border: 1px solid #7b2d8b; color: #c77dff; }
+
+    @keyframes slideIn  { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut  { from { opacity: 1; } to { opacity: 0; } }
+
+    /* ── Modals ───────────────────────────────────────────────────────  */
+    .modal-dark .modal-content {
+      background: #120020;
+      border: 1px solid #3a1060;
+      color: #e0c0ff;
+    }
+    .modal-dark .modal-header {
+      border-bottom: 1px solid #2a0040;
+    }
+    .modal-dark .modal-footer {
+      border-top: 1px solid #2a0040;
+    }
+    .modal-dark .modal-title { color: #c77dff; }
+    .modal-dark .btn-close { filter: invert(1) brightness(0.6); }
+    .modal-dark label { font-size: 0.85rem; color: #9070b0; margin-bottom: 0.25rem; }
+    .modal-dark .form-control {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid #3a1060;
+      color: #e0c0ff;
+    }
+    .modal-dark .form-control:focus {
+      background: rgba(255,255,255,0.09);
+      border-color: #7b2d8b;
+      box-shadow: 0 0 0 0.15rem rgba(123,45,139,0.35);
+      color: #e0c0ff;
+    }
+    .modal-dark .form-select {
+      background-color: rgba(255,255,255,0.06);
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23a070d0' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+      border: 1px solid #3a1060;
+      color: #e0c0ff;
+    }
+    .modal-dark .form-select:focus {
+      border-color: #7b2d8b;
+      box-shadow: 0 0 0 0.15rem rgba(123,45,139,0.35);
+    }
+    .modal-dark .form-select option { background: #1a0030; }
+
+    /* ── Leaflet popup override ───────────────────────────────────────  */
+    .leaflet-popup-content-wrapper {
+      background: #1a0030;
+      border: 1px solid #3a1060;
+      color: #e0c0ff;
+      border-radius: 8px;
+    }
+    .leaflet-popup-tip { background: #1a0030; }
+    .popup-name { font-weight: 700; font-size: 0.9rem; color: #c77dff; margin-bottom: 0.2rem; }
+    .popup-meta { font-size: 0.78rem; color: #9070b0; }
+    .popup-rating { font-size: 0.82rem; margin: 0.2rem 0; }
+    .popup-btn {
+      display: inline-block;
+      margin-top: 0.4rem;
+      padding: 0.25rem 0.7rem;
+      background: #7b2d8b;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .popup-btn:hover { background: #9b3dab; }
+
+    /* ── Spinner ──────────────────────────────────────────────────────  */
+    .spinner-sm {
+      width: 1rem; height: 1rem;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #c77dff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty / loading states ───────────────────────────────────────  */
+    .state-msg {
+      text-align: center;
+      color: #5040a0;
+      font-size: 0.85rem;
+      padding: 1.5rem 0;
+    }
+
+    /* ── Safety tags ──────────────────────────────────────────────────  */
+    .safety-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.35rem 0 0.5rem; }
+
+    .safety-tag-badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid currentColor;
+      line-height: 1.5;
+    }
+
+    /* Tag toggle buttons (used in Add Location modal) */
+    .tags-grid { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+
+    .tag-toggle {
+      padding: 0.2rem 0.55rem;
+      border-radius: 10px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid #3a1060;
+      background: rgba(255,255,255,0.04);
+      color: #9070b0;
+      transition: all 0.12s;
+      line-height: 1.5;
+    }
+    .tag-toggle:hover { border-color: #7b2d8b; color: #c4a0e8; background: rgba(123,45,139,0.15); }
+    .tag-toggle.selected { background: rgba(123,45,139,0.3); border-color: #9b3dab; color: #e0c0ff; }
+
+    /* ── Flag queue (admin modal) ────────────────────────────────────  */
+    .flag-card {
+      background: rgba(60,0,100,0.2);
+      border: 1px solid #2a0040;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .flag-reason {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #f7a8a8;
+      margin-bottom: 0.2rem;
+    }
+
+    .flag-location-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #e0c0ff;
+      margin-bottom: 0.15rem;
+    }
+
+    .flag-meta { font-size: 0.75rem; color: #6050a0; margin-bottom: 0.3rem; }
+    .flag-note { font-size: 0.83rem; color: #c0a8d8; margin-bottom: 0.5rem; font-style: italic; }
+
+    .flag-actions { display: flex; gap: 0.4rem; }
+
+    .btn-tiny-warning {
+      background: transparent;
+      border-color: #7a5000;
+      color: #ffc266;
+      padding: 0.15rem 0.55rem;
+      font-size: 0.72rem;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid;
+    }
+    .btn-tiny-warning:hover { background: #3d2800; }
+
+    /* ── Map attribution fix ──────────────────────────────────────────  */
+    .leaflet-control-attribution a { color: #9070b0 !important; }
+    .leaflet-control-attribution { background: rgba(18,0,32,0.7) !important; color: #5040a0 !important; }
+  </style>
+</head>
+
+<body>
+<div id="app">
+
+  <!-- ── Navbar ──────────────────────────────────────────────────────── -->
+  <nav id="navbar">
+    <span class="brand">🏳️‍⚧️ PridePin</span>
+    <div class="nav-actions" id="nav-actions">
+      <!-- Populated by updateNavbar() -->
+    </div>
+  </nav>
+
+  <!-- ── Main ────────────────────────────────────────────────────────── -->
+  <div id="main">
+    <div id="map"></div>
+
+    <!-- ── Place search (floating over map) ──────────────────────────── -->
+    <div id="search-container">
+      <div id="search-wrap">
+        <i class="bi bi-search" id="search-icon"></i>
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search for a place…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button id="search-clear" title="Clear">✕</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+
+    <div id="pick-banner">Click anywhere on the map to place your location</div>
+
+    <!-- ── Sidebar ───────────────────────────────────────────────────── -->
+    <div id="sidebar">
+      <button id="sidebar-close" title="Close">✕</button>
+      <div id="sidebar-content"><!-- filled by showLocationDetails() --></div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- ── Toast container ──────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<!-- ── Login Modal ──────────────────────────────────────────────────── -->
+<div class="modal fade modal-dark" id="loginModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Sign In</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="login-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label>Username</label>
+          <input type="text" id="login-username" class="form-control" placeholder="your_username" autocomplete="username" />
+        </div>
+        <div class="mb-3">
+          <label>Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#7b2d8b;color:#fff;" id="login-submit">Sign In</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Register Modal ────────────────────────────────────────────────── -->
+<div class="modal fade modal-dark" id="registerModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Create Account</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="register-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label>Username <small class="text-muted">(3–50 chars, letters/numbers/_)</small></label>
+          <input type="text" id="reg-username" class="form-control" placeholder="cool_name" autocomplete="username" />
+        </div>
+        <div class="mb-3">
+          <label>Email</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div class="mb-3">
+          <label>Password <small class="text-muted">(8+ chars)</small></label>
+          <input type="password" id="reg-password" class="form-control" placeholder="••••••••" autocomplete="new-password" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#7b2d8b;color:#fff;" id="register-submit">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Location Modal ────────────────────────────────────────────── -->
+<div class="modal fade modal-dark" id="addLocationModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Safe Space</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="add-location-error" class="alert alert-danger d-none"></div>
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label>Latitude</label>
+            <input type="number" id="loc-lat" class="form-control" step="0.000001" placeholder="51.5074" />
+          </div>
+          <div class="col-6">
+            <label>Longitude</label>
+            <input type="number" id="loc-lng" class="form-control" step="0.000001" placeholder="-0.1278" />
+          </div>
+        </div>
+        <div class="mb-2">
+          <label>Name</label>
+          <input type="text" id="loc-name" class="form-control" placeholder="The Rainbow Café" />
+        </div>
+        <div class="mb-2">
+          <label>Category</label>
+          <select id="loc-category" class="form-select">
+            <option value="">— select —</option>
+            <option value="BAR">🍻 Bar</option>
+            <option value="RESTAURANT">🍽️ Restaurant</option>
+            <option value="MEDICAL">🏥 Medical</option>
+            <option value="LEGAL">⚖️ Legal</option>
+            <option value="SHELTER">🏠 Shelter</option>
+            <option value="COMMUNITY_CENTER">🤝 Community Centre</option>
+            <option value="SHOPPING">🛍️ Shopping</option>
+            <option value="SUPPORT_GROUP">💜 Support Group</option>
+            <option value="HEALTHCARE">💊 Healthcare</option>
+            <option value="OTHER">📍 Other</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label>Address <small class="text-muted">(optional)</small></label>
+          <input type="text" id="loc-address" class="form-control" placeholder="1 Rainbow Street" />
+        </div>
+        <div class="mb-2">
+          <label>Description <small class="text-muted">(optional)</small></label>
+          <textarea id="loc-description" class="form-control" rows="3" placeholder="Why is this a safe space?"></textarea>
+        </div>
+        <div class="mb-2">
+          <label>Safety tags <small class="text-muted">(optional — select all that apply)</small></label>
+          <div class="tags-grid" id="loc-tags">
+            <button type="button" class="tag-toggle" data-tag="TRANS_OWNED">🏳️‍⚧️ Trans-Owned</button>
+            <button type="button" class="tag-toggle" data-tag="LGBTQ_OWNED">🏳️‍🌈 LGBTQ+-Owned</button>
+            <button type="button" class="tag-toggle" data-tag="TRANS_AFFIRMING">💜 Trans-Affirming</button>
+            <button type="button" class="tag-toggle" data-tag="PRONOUN_FRIENDLY_STAFF">💬 Pronoun-Friendly Staff</button>
+            <button type="button" class="tag-toggle" data-tag="GENDER_NEUTRAL_RESTROOMS">🚻 Gender-Neutral Restrooms</button>
+            <button type="button" class="tag-toggle" data-tag="TRANS_HEALTHCARE">💊 Trans Healthcare</button>
+            <button type="button" class="tag-toggle" data-tag="TRANS_YOUTH_SERVICES">🌟 Trans Youth Services</button>
+            <button type="button" class="tag-toggle" data-tag="NAME_CHANGE_ASSISTANCE">📋 Name Change Assistance</button>
+            <button type="button" class="tag-toggle" data-tag="FREE_SERVICES">🆓 Free Services</button>
+            <button type="button" class="tag-toggle" data-tag="CRISIS_SUPPORT">🆘 Crisis Support</button>
+            <button type="button" class="tag-toggle" data-tag="WHEELCHAIR_ACCESSIBLE">♿ Wheelchair Accessible</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#7b2d8b;color:#fff;" id="add-location-submit">Add Location</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Report Location Modal ─────────────────────────────────────────── -->
+<div class="modal fade modal-dark" id="reportModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">🚩 Report Location</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="report-error" class="alert alert-danger d-none"></div>
+        <p style="font-size:0.85rem;color:#9070b0;margin-bottom:1rem;">
+          Your report will be reviewed by an admin. Thank you for helping keep PridePin safe.
+        </p>
+        <div class="mb-3">
+          <label>Reason</label>
+          <select id="report-reason" class="form-select">
+            <option value="">— select a reason —</option>
+            <option value="NO_LONGER_SAFE">No longer a safe space</option>
+            <option value="HOSTILE_ENVIRONMENT">Hostile or unwelcoming environment</option>
+            <option value="INCORRECT_INFO">Incorrect information</option>
+            <option value="PERMANENTLY_CLOSED">Permanently closed</option>
+            <option value="WRONG_LOCATION">Wrong location on map</option>
+            <option value="DUPLICATE">Duplicate listing</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label>Additional note <small class="text-muted">(optional)</small></label>
+          <textarea id="report-note" class="form-control" rows="3"
+                    placeholder="Share any details that might help the admin…"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#7b2d8b;color:#fff;" id="report-submit">Submit Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Admin Flag Queue Modal ────────────────────────────────────────── -->
+<div class="modal fade modal-dark" id="flagQueueModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">🚩 Flag Queue</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+        <div id="flag-queue-content">
+          <div class="state-msg"><span class="spinner-sm"></span> Loading…</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:flex-start;gap:0.5rem;">
+        <small style="color:#6050a0;">Showing open flags. Resolve each one below.</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+'use strict';
+
+// ── Constants ──────────────────────────────────────────────────────────
+const API = '/api/v1';
+
+const CATEGORY_META = {
+  BAR:              { label: '🍻 Bar',             color: '#9b59b6', bg: '#2d0d40' },
+  RESTAURANT:       { label: '🍽️ Restaurant',      color: '#e67e22', bg: '#402000' },
+  MEDICAL:          { label: '🏥 Medical',          color: '#c0392b', bg: '#400000' },
+  LEGAL:            { label: '⚖️ Legal',            color: '#3498db', bg: '#001840' },
+  SHELTER:          { label: '🏠 Shelter',          color: '#27ae60', bg: '#003020' },
+  COMMUNITY_CENTER: { label: '🤝 Community Centre', color: '#16a085', bg: '#003028' },
+  SHOPPING:         { label: '🛍️ Shopping',         color: '#e91e63', bg: '#400020' },
+  SUPPORT_GROUP:    { label: '💜 Support Group',    color: '#f39c12', bg: '#402800' },
+  HEALTHCARE:       { label: '💊 Healthcare',       color: '#e74c3c', bg: '#400808' },
+  OTHER:            { label: '📍 Other',            color: '#95a5a6', bg: '#1a1a2a' },
+};
+
+const SAFETY_TAG_META = {
+  TRANS_OWNED:              { label: '🏳️‍⚧️ Trans-Owned',              color: '#f7a8c4' },
+  LGBTQ_OWNED:              { label: '🏳️‍🌈 LGBTQ+-Owned',             color: '#a8c4f7' },
+  TRANS_AFFIRMING:          { label: '💜 Trans-Affirming',              color: '#c77dff' },
+  PRONOUN_FRIENDLY_STAFF:   { label: '💬 Pronoun-Friendly Staff',       color: '#c4a8f7' },
+  GENDER_NEUTRAL_RESTROOMS: { label: '🚻 Gender-Neutral Restrooms',     color: '#a8f7c4' },
+  TRANS_HEALTHCARE:         { label: '💊 Trans Healthcare',             color: '#f7c4a8' },
+  TRANS_YOUTH_SERVICES:     { label: '🌟 Trans Youth Services',         color: '#f7f4a8' },
+  NAME_CHANGE_ASSISTANCE:   { label: '📋 Name Change Assistance',       color: '#a8f0f7' },
+  FREE_SERVICES:            { label: '🆓 Free Services',                color: '#b0f7a8' },
+  CRISIS_SUPPORT:           { label: '🆘 Crisis Support',               color: '#f7a8a8' },
+  WHEELCHAIR_ACCESSIBLE:    { label: '♿ Wheelchair Accessible',         color: '#d8d8d8' },
+};
+
+// ── State ──────────────────────────────────────────────────────────────
+let map;
+let currentToken = localStorage.getItem('pp_token') || null;
+let currentUser  = JSON.parse(localStorage.getItem('pp_user') || 'null');
+let markers           = {};     // locationId → Leaflet marker
+let pickingMode       = false;  // true when user is placing a new location
+let tempMarker        = null;   // the crosshair temporary marker
+let currentLocationId = null;   // which location is open in the sidebar
+let searchMarker      = null;   // temporary marker for geocode results
+let searchDebounce    = null;   // debounce timer for search input
+
+// ── Bootstrap modal instances ──────────────────────────────────────────
+let loginModal, registerModal, addLocationModal;
+
+// ── Init ───────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initMap();
+  initModals();
+  initReportModal();
+  initFlagQueueModal();
+  initNavbarHandlers();
+  initSidebar();
+  initSearch();
+  updateNavbar();
+  loadAllLocations();
+});
+
+function initMap() {
+  map = L.map('map', {
+    center: [20, 0],
+    zoom: 2,
+    zoomControl: true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Try geolocation
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => map.setView([pos.coords.latitude, pos.coords.longitude], 12),
+      () => {}
+    );
+  }
+
+  map.on('click', onMapClick);
+}
+
+function initModals() {
+  loginModal        = new bootstrap.Modal(document.getElementById('loginModal'));
+  registerModal     = new bootstrap.Modal(document.getElementById('registerModal'));
+  addLocationModal  = new bootstrap.Modal(document.getElementById('addLocationModal'));
+
+  // Login submit
+  document.getElementById('login-submit').addEventListener('click', handleLogin);
+  document.getElementById('login-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleLogin();
+  });
+
+  // Register submit
+  document.getElementById('register-submit').addEventListener('click', handleRegister);
+
+  // Add location submit
+  document.getElementById('add-location-submit').addEventListener('click', handleAddLocation);
+
+  // Safety tag toggles
+  document.getElementById('loc-tags').addEventListener('click', e => {
+    const btn = e.target.closest('.tag-toggle');
+    if (btn) btn.classList.toggle('selected');
+  });
+
+  // When add-location modal is hidden, exit picking mode
+  document.getElementById('addLocationModal').addEventListener('hidden.bs.modal', () => {
+    if (!pickingMode) exitPickingMode();
+  });
+}
+
+function initNavbarHandlers() {
+  // Delegated click handling for dynamically rendered navbar buttons
+  document.getElementById('nav-actions').addEventListener('click', e => {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    if (action === 'login')       loginModal.show();
+    if (action === 'register')    registerModal.show();
+    if (action === 'logout')      handleLogout();
+    if (action === 'add-mode')    togglePickingMode();
+    if (action === 'flag-queue')  openFlagQueue();
+  });
+}
+
+function initSidebar() {
+  document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
+}
+
+// ── Navbar ─────────────────────────────────────────────────────────────
+function updateNavbar() {
+  const el = document.getElementById('nav-actions');
+  if (currentUser) {
+    const adminBtn = currentUser.role === 'ADMIN'
+      ? `<button class="btn-nav btn-nav-outline" data-action="flag-queue" style="border-color:#5a1a1a;color:#f7a8a8;">
+           🚩 Flags
+         </button>`
+      : '';
+    el.innerHTML = `
+      <span id="username-display"><i class="bi bi-person-fill"></i> ${escapeHtml(currentUser.username)}</span>
+      ${adminBtn}
+      <button class="btn-nav btn-nav-success" data-action="add-mode">
+        <i class="bi bi-plus-circle"></i> Add Location
+      </button>
+      <button class="btn-nav btn-nav-danger" data-action="logout">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </button>
+    `;
+  } else {
+    el.innerHTML = `
+      <button class="btn-nav btn-nav-outline" data-action="login">Sign In</button>
+      <button class="btn-nav btn-nav-primary" data-action="register">Register</button>
+    `;
+  }
+}
+
+// ── Auth handlers ──────────────────────────────────────────────────────
+async function handleLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.classList.add('d-none');
+
+  if (!username || !password) {
+    showModalError(errEl, 'Please fill in all fields.');
+    return;
+  }
+
+  const btn = document.getElementById('login-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>';
+
+  try {
+    const data = await apiPost('/auth/login', { username, password });
+    storeAuth(data);
+    loginModal.hide();
+    document.getElementById('login-username').value = '';
+    document.getElementById('login-password').value = '';
+    toast('Welcome back, ' + data.user.username + '!', 'success');
+    updateNavbar();
+  } catch (err) {
+    const msg = err.message || 'Invalid credentials.';
+    const isUnverified = msg.toLowerCase().includes('verify your email');
+    if (isUnverified) {
+      showModalError(errEl,
+        msg + ' <a href="#" style="color:#c77dff;" onclick="showResendForm();return false;">Resend email</a>');
+    } else {
+      showModalError(errEl, msg);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In';
+  }
+}
+
+async function handleRegister() {
+  const username = document.getElementById('reg-username').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const errEl    = document.getElementById('register-error');
+  errEl.classList.add('d-none');
+
+  if (!username || !email || !password) {
+    showModalError(errEl, 'Please fill in all fields.');
+    return;
+  }
+
+  const btn = document.getElementById('register-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>';
+
+  try {
+    const data = await apiPost('/auth/register', { username, email, password });
+    registerModal.hide();
+    if (data.token) {
+      // Email verification disabled (dev mode) — log in immediately
+      storeAuth(data);
+      toast('Account created! Welcome, ' + data.user.username + ' 🏳️‍⚧️', 'success');
+      updateNavbar();
+    } else {
+      // Email verification required — show message, don't log in yet
+      toast(data.message || 'Please check your email to verify your account.', 'info');
+    }
+  } catch (err) {
+    showModalError(errEl, err.message || 'Registration failed.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Create Account';
+  }
+}
+
+function showResendForm() {
+  const errEl = document.getElementById('login-error');
+  errEl.innerHTML = `
+    <div style="margin-bottom:0.4rem;">Please verify your email before logging in.</div>
+    <div style="display:flex;gap:0.4rem;align-items:center;">
+      <input type="email" id="resend-email-input" class="form-control form-control-sm"
+             placeholder="your@email.com" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid #3a1060;color:#e0c0ff;" />
+      <button onclick="handleResendVerification()" class="btn btn-sm"
+              style="background:#7b2d8b;color:#fff;white-space:nowrap;">Resend</button>
+    </div>`;
+  errEl.classList.remove('d-none');
+}
+
+async function handleResendVerification() {
+  const email = document.getElementById('resend-email-input')?.value?.trim();
+  if (!email) return;
+  try {
+    await apiPost('/auth/resend-verification', { email });
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = 'If that email is registered and unverified, a new link has been sent.';
+    toast('Verification email sent.', 'info');
+  } catch (err) {
+    toast(err.message || 'Failed to resend.', 'error');
+  }
+}
+
+function handleLogout() {
+  localStorage.removeItem('pp_token');
+  localStorage.removeItem('pp_user');
+  currentToken = null;
+  currentUser  = null;
+  updateNavbar();
+  toast('Signed out.', 'info');
+}
+
+function storeAuth(data) {
+  currentToken = data.token;
+  currentUser  = data.user;
+  localStorage.setItem('pp_token', currentToken);
+  localStorage.setItem('pp_user', JSON.stringify(currentUser));
+}
+
+// ── Location picking mode ──────────────────────────────────────────────
+function togglePickingMode() {
+  if (pickingMode) {
+    exitPickingMode();
+  } else {
+    enterPickingMode();
+  }
+}
+
+function enterPickingMode() {
+  pickingMode = true;
+  document.getElementById('map').classList.add('picking');
+  document.getElementById('pick-banner').style.display = 'block';
+  closeSidebar();
+  toast('Click the map to place your location.', 'info');
+}
+
+function exitPickingMode() {
+  pickingMode = false;
+  document.getElementById('map').classList.remove('picking');
+  document.getElementById('pick-banner').style.display = 'none';
+  if (tempMarker) {
+    map.removeLayer(tempMarker);
+    tempMarker = null;
+  }
+}
+
+function onMapClick(e) {
+  if (!pickingMode) return;
+
+  const { lat, lng } = e.latlng;
+
+  if (tempMarker) map.removeLayer(tempMarker);
+  tempMarker = L.circleMarker([lat, lng], {
+    radius: 8,
+    color: '#c77dff',
+    fillColor: '#7b2d8b',
+    fillOpacity: 0.8,
+    weight: 2,
+  }).addTo(map);
+
+  // Pre-fill modal coordinates
+  document.getElementById('loc-lat').value = lat.toFixed(6);
+  document.getElementById('loc-lng').value = lng.toFixed(6);
+  document.getElementById('add-location-error').classList.add('d-none');
+
+  pickingMode = false;
+  document.getElementById('map').classList.remove('picking');
+  document.getElementById('pick-banner').style.display = 'none';
+
+  addLocationModal.show();
+}
+
+// ── Add Location ───────────────────────────────────────────────────────
+async function handleAddLocation() {
+  const errEl = document.getElementById('add-location-error');
+  errEl.classList.add('d-none');
+
+  const selectedTags = Array.from(
+    document.querySelectorAll('#loc-tags .tag-toggle.selected')
+  ).map(btn => btn.dataset.tag);
+
+  const payload = {
+    name:        document.getElementById('loc-name').value.trim(),
+    description: document.getElementById('loc-description').value.trim() || null,
+    latitude:    parseFloat(document.getElementById('loc-lat').value),
+    longitude:   parseFloat(document.getElementById('loc-lng').value),
+    category:    document.getElementById('loc-category').value,
+    address:     document.getElementById('loc-address').value.trim() || null,
+    tags:        selectedTags.length > 0 ? selectedTags : [],
+  };
+
+  if (!payload.name) { showModalError(errEl, 'Name is required.'); return; }
+  if (!payload.category) { showModalError(errEl, 'Category is required.'); return; }
+  if (isNaN(payload.latitude) || isNaN(payload.longitude)) {
+    showModalError(errEl, 'Valid coordinates are required.');
+    return;
+  }
+
+  const btn = document.getElementById('add-location-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>';
+
+  try {
+    const location = await apiPost('/locations', payload, true);
+    addLocationModal.hide();
+    clearAddLocationForm();
+    exitPickingMode();
+    addMarker(location);
+    toast('Location added!', 'success');
+    showLocationDetails(location.id);
+  } catch (err) {
+    showModalError(errEl, err.message || 'Could not add location.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Add Location';
+  }
+}
+
+function clearAddLocationForm() {
+  ['loc-name','loc-description','loc-lat','loc-lng','loc-address'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('loc-category').value = '';
+  document.querySelectorAll('#loc-tags .tag-toggle.selected').forEach(btn => {
+    btn.classList.remove('selected');
+  });
+}
+
+// ── Load all locations ─────────────────────────────────────────────────
+async function loadAllLocations() {
+  try {
+    // Fetch all pages (up to 200 locations for a portfolio demo)
+    const page1 = await apiGet('/locations?size=100&page=0');
+    page1.content.forEach(addMarker);
+
+    if (page1.totalPages > 1) {
+      const page2 = await apiGet('/locations?size=100&page=1');
+      page2.content.forEach(addMarker);
+    }
+  } catch (err) {
+    console.error('Failed to load locations:', err);
+  }
+}
+
+// ── Markers ────────────────────────────────────────────────────────────
+function addMarker(location) {
+  const meta = CATEGORY_META[location.category] || CATEGORY_META.OTHER;
+
+  const marker = L.circleMarker([location.latitude, location.longitude], {
+    radius: 9,
+    color: meta.color,
+    fillColor: meta.color,
+    fillOpacity: 0.75,
+    weight: 2.5,
+  });
+
+  const ratingText = location.averageRating
+    ? `${renderStarsHtml(location.averageRating)} (${location.reviewCount})`
+    : 'No reviews yet';
+
+  marker.bindPopup(`
+    <div class="popup-name">${escapeHtml(location.name)}</div>
+    <div class="popup-meta">${meta.label}</div>
+    <div class="popup-rating">${ratingText}</div>
+    <button class="popup-btn" onclick="showLocationDetails('${location.id}')">View details</button>
+  `, { maxWidth: 220 });
+
+  marker.addTo(map);
+  markers[location.id] = marker;
+}
+
+function removeMarker(locationId) {
+  if (markers[locationId]) {
+    map.removeLayer(markers[locationId]);
+    delete markers[locationId];
+  }
+}
+
+// ── Sidebar / Location detail ──────────────────────────────────────────
+async function showLocationDetails(locationId) {
+  currentLocationId = locationId;
+  openSidebar();
+
+  const content = document.getElementById('sidebar-content');
+  content.innerHTML = `<div class="sidebar-section state-msg"><span class="spinner-sm"></span> Loading…</div>`;
+
+  try {
+    const [location, reviewsPage] = await Promise.all([
+      apiGet(`/locations/${locationId}`),
+      apiGet(`/locations/${locationId}/reviews?size=50&page=0`),
+    ]);
+
+    renderSidebar(location, reviewsPage.content);
+  } catch (err) {
+    content.innerHTML = `<div class="sidebar-section state-msg">Failed to load location.</div>`;
+  }
+}
+
+function renderSidebar(location, reviews) {
+  const meta  = CATEGORY_META[location.category] || CATEGORY_META.OTHER;
+  const stars = location.averageRating ? renderStarsHtml(location.averageRating) : '—';
+  const isOwner = currentUser && currentUser.id === location.addedById;
+  const isAdmin = currentUser && currentUser.role === 'ADMIN';
+
+  document.getElementById('sidebar-content').innerHTML = `
+    <!-- ── Location info ── -->
+    <div class="sidebar-section">
+      <div class="location-name">${escapeHtml(location.name)}</div>
+      <span class="category-badge" style="background:${meta.bg};color:${meta.color};">${meta.label}</span>
+      ${location.tags && location.tags.length > 0 ? `
+        <div class="safety-tags">
+          ${location.tags.map(tag => {
+            const tm = SAFETY_TAG_META[tag] || { label: tag, color: '#c77dff' };
+            return `<span class="safety-tag-badge" style="color:${tm.color};">${tm.label}</span>`;
+          }).join('')}
+        </div>` : ''}
+      <div class="rating-display">
+        <span class="stars">${stars}</span>
+        <small style="color:#6050a0;"> ${location.reviewCount} review${location.reviewCount !== 1 ? 's' : ''}</small>
+      </div>
+      ${location.address ? `<div class="location-address"><i class="bi bi-geo-alt-fill"></i> ${escapeHtml(location.address)}</div>` : ''}
+      ${location.description ? `<p class="location-description mt-2">${escapeHtml(location.description)}</p>` : ''}
+      <div class="location-meta mt-1">Added by ${escapeHtml(location.addedByUsername)}</div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+        ${(isOwner || isAdmin) ? `
+          <button class="btn-tiny btn-tiny-danger" onclick="handleDeleteLocation('${location.id}')">
+            <i class="bi bi-trash3"></i> Delete location
+          </button>` : ''}
+        ${(currentUser && !isOwner) ? `
+          <button class="btn-tiny btn-tiny-warning" onclick="openReportModal('${location.id}')">
+            🚩 Report
+          </button>` : ''}
+      </div>
+    </div>
+
+    <!-- ── Reviews list ── -->
+    <div class="sidebar-section">
+      <div class="section-title">Reviews</div>
+      <div id="reviews-list">
+        ${renderReviews(reviews)}
+      </div>
+    </div>
+
+    <!-- ── Leave a review ── -->
+    ${currentUser ? `
+    <div class="sidebar-section">
+      <div class="section-title">Leave a Review</div>
+      <div id="review-form-error" class="alert alert-danger d-none" style="font-size:0.8rem;padding:0.4rem 0.7rem;"></div>
+      <div class="star-picker" id="star-picker">
+        ${[1,2,3,4,5].map(n => `<button class="star-btn" data-val="${n}" onclick="setRating(${n})">★</button>`).join('')}
+      </div>
+      <input type="hidden" id="review-rating" value="0" />
+      <textarea id="review-comment" class="form-control-dark" rows="3" placeholder="Share your experience… (optional)"></textarea>
+      <button class="btn-submit" onclick="handleSubmitReview('${location.id}')">Post Review</button>
+    </div>` : `
+    <div class="sidebar-section state-msg">
+      <a href="#" style="color:#7b2d8b;" onclick="loginModal.show();return false;">Sign in</a> to leave a review.
+    </div>`}
+  `;
+}
+
+function renderReviews(reviews) {
+  if (!reviews || reviews.length === 0) {
+    return '<div class="state-msg">No reviews yet. Be the first!</div>';
+  }
+  return reviews.map(r => {
+    const isOwner = currentUser && currentUser.id === r.userId;
+    const isAdmin = currentUser && currentUser.role === 'ADMIN';
+    const date    = new Date(r.createdAt).toLocaleDateString();
+    return `
+      <div class="review-card" id="review-${r.id}">
+        <div class="review-header">
+          <span class="reviewer-name">${escapeHtml(r.username)}</span>
+          <span class="review-date">${date}</span>
+        </div>
+        <div><span class="stars">${renderStarsHtml(r.rating)}</span></div>
+        ${r.comment ? `<div class="review-text">${escapeHtml(r.comment)}</div>` : ''}
+        ${(isOwner || isAdmin) ? `
+          <div class="review-actions">
+            <button class="btn-tiny btn-tiny-danger" onclick="handleDeleteReview('${currentLocationId}','${r.id}')">
+              <i class="bi bi-trash3"></i> Delete
+            </button>
+          </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ── Star picker ────────────────────────────────────────────────────────
+function setRating(value) {
+  document.getElementById('review-rating').value = value;
+  document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.val) <= value);
+  });
+}
+
+// ── Submit review ──────────────────────────────────────────────────────
+async function handleSubmitReview(locationId) {
+  const rating  = parseInt(document.getElementById('review-rating').value);
+  const comment = document.getElementById('review-comment').value.trim();
+  const errEl   = document.getElementById('review-form-error');
+  errEl.classList.add('d-none');
+
+  if (!rating || rating < 1 || rating > 5) {
+    errEl.textContent = 'Please select a star rating.';
+    errEl.classList.remove('d-none');
+    return;
+  }
+
+  try {
+    await apiPost(`/locations/${locationId}/reviews`, { rating, comment: comment || null }, true);
+    toast('Review posted!', 'success');
+    showLocationDetails(locationId);
+  } catch (err) {
+    errEl.textContent = err.message || 'Failed to post review.';
+    errEl.classList.remove('d-none');
+  }
+}
+
+// ── Delete review ──────────────────────────────────────────────────────
+async function handleDeleteReview(locationId, reviewId) {
+  if (!confirm('Delete this review?')) return;
+  try {
+    await apiDelete(`/locations/${locationId}/reviews/${reviewId}`, true);
+    document.getElementById(`review-${reviewId}`)?.remove();
+    toast('Review deleted.', 'info');
+    // Refresh to update avg rating marker
+    refreshMarker(locationId);
+  } catch (err) {
+    toast(err.message || 'Failed to delete review.', 'error');
+  }
+}
+
+// ── Delete location ────────────────────────────────────────────────────
+async function handleDeleteLocation(locationId) {
+  if (!confirm('Delete this location? This cannot be undone.')) return;
+  try {
+    await apiDelete(`/locations/${locationId}`, true);
+    removeMarker(locationId);
+    closeSidebar();
+    toast('Location deleted.', 'info');
+  } catch (err) {
+    toast(err.message || 'Failed to delete location.', 'error');
+  }
+}
+
+async function refreshMarker(locationId) {
+  try {
+    const location = await apiGet(`/locations/${locationId}`);
+    removeMarker(locationId);
+    addMarker(location);
+  } catch (_) {}
+}
+
+// ── Sidebar helpers ────────────────────────────────────────────────────
+function openSidebar()  { document.getElementById('sidebar').classList.add('open'); }
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  currentLocationId = null;
+}
+
+// ── Star rendering ─────────────────────────────────────────────────────
+function renderStarsHtml(rating) {
+  const full  = Math.round(rating);
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    html += i <= full ? '★' : '<span class="stars-empty">★</span>';
+  }
+  return html;
+}
+
+// ── API helpers ────────────────────────────────────────────────────────
+async function apiGet(path) {
+  const res = await fetch(API + path, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) await throwApiError(res);
+  return res.json();
+}
+
+async function apiPost(path, body, requiresAuth = false) {
+  const res = await fetch(API + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(requiresAuth) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) await throwApiError(res);
+  return res.json();
+}
+
+async function apiPut(path, body, requiresAuth = false) {
+  const res = await fetch(API + path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders(requiresAuth) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) await throwApiError(res);
+  return res.json();
+}
+
+async function apiDelete(path, requiresAuth = false) {
+  const res = await fetch(API + path, {
+    method: 'DELETE',
+    headers: authHeaders(requiresAuth),
+  });
+  if (!res.ok) await throwApiError(res);
+  return res.json();
+}
+
+function authHeaders(required = false) {
+  if (currentToken) return { Authorization: `Bearer ${currentToken}` };
+  return {};
+}
+
+async function throwApiError(res) {
+  let msg = `HTTP ${res.status}`;
+  try {
+    const body = await res.json();
+    if (body.message) msg = body.message;
+    else if (body.errors) msg = Object.values(body.errors).join(' ');
+  } catch (_) {}
+  throw new Error(msg);
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────
+function toast(message, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast-msg toast-${type}`;
+  el.textContent = message;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3300);
+}
+
+// ── Modal error ────────────────────────────────────────────────────────
+function showModalError(el, message) {
+  el.textContent = message;
+  el.classList.remove('d-none');
+}
+
+// ── Place search ───────────────────────────────────────────────────────
+
+function initSearch() {
+  const input   = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear');
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearBtn.style.display = q ? 'block' : 'none';
+    clearTimeout(searchDebounce);
+    if (q.length < 2) { closeSearchResults(); return; }
+    document.getElementById('search-results').innerHTML =
+      '<div class="search-loading"><span class="spinner-sm"></span></div>';
+    document.getElementById('search-results').style.display = 'block';
+    searchDebounce = setTimeout(() => searchPlaces(q), 380);
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') clearSearch();
+  });
+
+  clearBtn.addEventListener('click', clearSearch);
+
+  // Close dropdown when clicking outside the search container
+  document.addEventListener('click', e => {
+    if (!document.getElementById('search-container').contains(e.target)) {
+      closeSearchResults();
+    }
+  });
+
+  // Prevent map click events bubbling up from the search container
+  document.getElementById('search-container').addEventListener('click', e => {
+    e.stopPropagation();
+  });
+}
+
+async function searchPlaces(query) {
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?' + new URLSearchParams({
+      q:              query,
+      format:         'json',
+      limit:          '6',
+      addressdetails: '1',
+    });
+    const res = await fetch(url, {
+      headers: {
+        'Accept-Language': 'en',
+        // Nominatim ToS requires identifying your app
+        'User-Agent': 'PridePin/1.0 (portfolio project)',
+      },
+    });
+    const results = await res.json();
+    renderSearchResults(results);
+  } catch (err) {
+    document.getElementById('search-results').innerHTML =
+      '<div class="search-no-results">Search unavailable. Try again.</div>';
+  }
+}
+
+function renderSearchResults(results) {
+  const el = document.getElementById('search-results');
+  if (!results.length) {
+    el.innerHTML = '<div class="search-no-results">No places found.</div>';
+    el.style.display = 'block';
+    return;
+  }
+
+  el.innerHTML = results.map(r => {
+    const name    = r.name || r.display_name.split(',')[0];
+    const subParts = r.display_name.split(',').slice(1, 3).join(',').trim();
+    const icon    = getPlaceIcon(r.type, r.class);
+    return `
+      <div class="search-result"
+           onclick="selectSearchResult(${r.lat}, ${r.lon},
+                    ${JSON.stringify(name)}, ${JSON.stringify(r.display_name)})">
+        <span class="search-result-icon">${icon}</span>
+        <div style="overflow:hidden;">
+          <div class="search-result-name">${escapeHtml(name)}</div>
+          <div class="search-result-sub">${escapeHtml(subParts)}</div>
+        </div>
+      </div>`;
+  }).join('');
+  el.style.display = 'block';
+}
+
+function selectSearchResult(lat, lng, name, fullName) {
+  closeSearchResults();
+  clearSearch();
+
+  // Fly to the location
+  map.flyTo([lat, lng], 16, { animate: true, duration: 1.2 });
+
+  // Remove previous search marker
+  if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+
+  // Pulsing divIcon
+  const pulseIcon = L.divIcon({
+    className: '',
+    html: '<div class="search-marker-pulse"></div>',
+    iconSize:   [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -12],
+  });
+
+  searchMarker = L.marker([lat, lng], { icon: pulseIcon }).addTo(map);
+
+  const shortName   = escapeHtml(name);
+  const displayName = escapeHtml(fullName);
+  const addBtn = currentUser
+    ? `<button class="popup-btn" style="margin-top:0.5rem;width:100%;"
+               onclick="prefillAndOpenAddLocation(${lat}, ${lng}, ${JSON.stringify(name)})">
+         + Add as Safe Space
+       </button>`
+    : `<div style="font-size:0.75rem;color:#6050a0;margin-top:0.4rem;">
+         Sign in to add this as a safe space.
+       </div>`;
+
+  searchMarker.bindPopup(`
+    <div class="popup-name">${shortName}</div>
+    <div class="popup-meta" style="font-size:0.75rem;line-height:1.4;margin-bottom:0.25rem;">
+      ${displayName}
+    </div>
+    ${addBtn}
+  `, { maxWidth: 240 }).openPopup();
+}
+
+function prefillAndOpenAddLocation(lat, lng, name) {
+  if (!currentUser) { loginModal.show(); return; }
+
+  // Pre-fill the add-location form with the place's coordinates and name
+  document.getElementById('loc-lat').value  = parseFloat(lat).toFixed(6);
+  document.getElementById('loc-lng').value  = parseFloat(lng).toFixed(6);
+  document.getElementById('loc-name').value = name;
+  document.getElementById('add-location-error').classList.add('d-none');
+
+  map.closePopup();
+  addLocationModal.show();
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  closeSearchResults();
+  if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+}
+
+function closeSearchResults() {
+  const el = document.getElementById('search-results');
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+function getPlaceIcon(type, cls) {
+  if (['bar', 'pub', 'nightclub'].includes(type))           return '🍻';
+  if (['restaurant', 'cafe', 'fast_food'].includes(type))   return '🍽️';
+  if (['hospital', 'clinic', 'pharmacy'].includes(type))    return '🏥';
+  if (['shelter', 'hostel'].includes(type))                 return '🏠';
+  if (['city', 'town', 'borough'].includes(type))           return '🏙️';
+  if (['village', 'hamlet', 'suburb'].includes(type))       return '🏘️';
+  if (cls === 'highway')                                     return '🛣️';
+  if (cls === 'natural')                                     return '🌿';
+  if (cls === 'building' || type === 'building')            return '🏢';
+  if (type === 'park' || cls === 'leisure')                 return '🌳';
+  return '📍';
+}
+
+// ── Report / Flag ──────────────────────────────────────────────────────
+let reportModal;
+let reportingLocationId = null;
+
+function initReportModal() {
+  reportModal = new bootstrap.Modal(document.getElementById('reportModal'));
+  document.getElementById('report-submit').addEventListener('click', handleSubmitReport);
+  document.getElementById('reportModal').addEventListener('hidden.bs.modal', () => {
+    reportingLocationId = null;
+    document.getElementById('report-reason').value = '';
+    document.getElementById('report-note').value = '';
+    document.getElementById('report-error').classList.add('d-none');
+  });
+}
+
+function openReportModal(locationId) {
+  reportingLocationId = locationId;
+  reportModal.show();
+}
+
+async function handleSubmitReport() {
+  const reason  = document.getElementById('report-reason').value;
+  const note    = document.getElementById('report-note').value.trim();
+  const errEl   = document.getElementById('report-error');
+  errEl.classList.add('d-none');
+
+  if (!reason) {
+    errEl.textContent = 'Please select a reason.';
+    errEl.classList.remove('d-none');
+    return;
+  }
+
+  const btn = document.getElementById('report-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>';
+
+  try {
+    await apiPost(`/locations/${reportingLocationId}/flags`,
+      { reason, note: note || null }, true);
+    reportModal.hide();
+    toast('Your report has been submitted. Thank you.', 'success');
+  } catch (err) {
+    errEl.textContent = err.message || 'Could not submit report.';
+    errEl.classList.remove('d-none');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Submit Report';
+  }
+}
+
+// ── Admin Flag Queue ────────────────────────────────────────────────────
+let flagQueueModal;
+
+function initFlagQueueModal() {
+  flagQueueModal = new bootstrap.Modal(document.getElementById('flagQueueModal'));
+}
+
+async function openFlagQueue() {
+  document.getElementById('flag-queue-content').innerHTML =
+    '<div class="state-msg"><span class="spinner-sm"></span> Loading…</div>';
+  flagQueueModal.show();
+
+  try {
+    const data = await apiGet('/flags/admin?size=50&page=0');
+    renderFlagQueue(data.content);
+  } catch (err) {
+    document.getElementById('flag-queue-content').innerHTML =
+      `<div class="state-msg">Failed to load flags.</div>`;
+  }
+}
+
+function renderFlagQueue(flags) {
+  const el = document.getElementById('flag-queue-content');
+  if (!flags || flags.length === 0) {
+    el.innerHTML = '<div class="state-msg" style="padding:2rem 0;">No open flags. 🎉</div>';
+    return;
+  }
+
+  const REASON_LABELS = {
+    NO_LONGER_SAFE:    'No longer safe',
+    HOSTILE_ENVIRONMENT: 'Hostile environment',
+    INCORRECT_INFO:    'Incorrect info',
+    PERMANENTLY_CLOSED: 'Permanently closed',
+    WRONG_LOCATION:    'Wrong location',
+    DUPLICATE:         'Duplicate',
+    OTHER:             'Other',
+  };
+
+  el.innerHTML = flags.map(f => `
+    <div class="flag-card" id="flag-card-${f.id}">
+      <div class="flag-reason">${REASON_LABELS[f.reason] || f.reason}</div>
+      <div class="flag-location-name">
+        <a href="#" style="color:#c77dff;text-decoration:none;"
+           onclick="flagQueueModal.hide();showLocationDetails('${f.locationId}');return false;">
+          ${escapeHtml(f.locationName)}
+        </a>
+      </div>
+      <div class="flag-meta">Reported by ${escapeHtml(f.reporterUsername)} · ${new Date(f.createdAt).toLocaleDateString()}</div>
+      ${f.note ? `<div class="flag-note">"${escapeHtml(f.note)}"</div>` : ''}
+      <div class="flag-actions">
+        <button class="btn-tiny btn-tiny-warning"
+                onclick="resolveFlag('${f.id}', 'DISMISS', null)">
+          ✓ Dismiss
+        </button>
+        <button class="btn-tiny btn-tiny-danger"
+                onclick="resolveFlag('${f.id}', 'DEACTIVATE', '${f.locationId}')">
+          <i class="bi bi-trash3"></i> Deactivate Location
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+async function resolveFlag(flagId, action, locationId) {
+  const label = action === 'DEACTIVATE' ? 'deactivate this location' : 'dismiss this flag';
+  if (!confirm(`Are you sure you want to ${label}?`)) return;
+
+  try {
+    await apiPut(`/flags/admin/${flagId}/resolve`, { action }, true);
+    document.getElementById(`flag-card-${flagId}`)?.remove();
+    const remaining = document.querySelectorAll('[id^="flag-card-"]').length;
+    if (remaining === 0) {
+      document.getElementById('flag-queue-content').innerHTML =
+        '<div class="state-msg" style="padding:2rem 0;">No open flags. 🎉</div>';
+    }
+    if (action === 'DEACTIVATE' && locationId) {
+      removeMarker(locationId);
+      if (currentLocationId === locationId) closeSidebar();
+    }
+    toast(action === 'DEACTIVATE' ? 'Location deactivated.' : 'Flag dismissed.', 'info');
+  } catch (err) {
+    toast(err.message || 'Failed to resolve flag.', 'error');
+  }
+}
+
+// ── XSS helper ────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+</script>
+</body>
+</html>

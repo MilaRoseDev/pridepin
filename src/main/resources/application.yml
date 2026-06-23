@@ -1,0 +1,95 @@
+spring:
+  application:
+    name: pridepin
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pridepin}
+    username: ${DB_USERNAME:pridepin}
+    password: ${DB_PASSWORD:pridepin}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # Use 'validate' in production
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: public
+        jdbc:
+          lob:
+            non_contextual_creation: true
+
+  data:
+    web:
+      pageable:
+        default-page-size: 20
+        max-page-size: 100
+        one-indexed-parameters: false
+
+  # ── Mail ────────────────────────────────────────────────────────────────
+  # For Gmail: enable "App Passwords" in your Google account and use that as MAIL_PASSWORD.
+  # For Resend (recommended): host=smtp.resend.com, port=587, username=resend, password=<api-key>
+  # For Brevo: host=smtp-relay.brevo.com, port=587
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:noreply@pridepin.app}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/css,application/javascript
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    try-it-out-enabled: true
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+# ──────────────────────────────────────────────────────────────────
+# App-specific configuration
+# ──────────────────────────────────────────────────────────────────
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+
+  jwt:
+    # IMPORTANT: Replace this with a secure random secret in any shared environment.
+    # Generate one with: openssl rand -base64 64
+    # The value below is for LOCAL DEVELOPMENT ONLY.
+    secret: ${JWT_SECRET:cHJpZGVwaW4tZGV2LXNlY3JldC1rZXktMjAyNi1ET05ULVVTRUktSU4tUFJPRFVDVElPTi0hISE=}
+    expiration: ${JWT_EXPIRATION:86400000}   # 24 hours in ms
+
+  email-verification:
+    # Set to true in production (and configure spring.mail.* above).
+    # When false, users are auto-verified on registration — useful for local dev.
+    enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+
+logging:
+  level:
+    com.pridepin: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
