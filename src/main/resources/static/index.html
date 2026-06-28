@@ -1025,6 +1025,7 @@ let currentLocationId = null;   // which location is open in the sidebar
 let searchMarker      = null;   // temporary marker for geocode results
 let searchDebounce    = null;   // debounce timer for search input
 let filterState       = { category: null, tag: null };
+let searchResultsData = [];   // cache for Nominatim results, referenced by index in onclick
 
 // ── Bootstrap modal instances ──────────────────────────────────────────
 let loginModal, registerModal, addLocationModal;
@@ -1747,14 +1748,14 @@ function renderSearchResults(results) {
     return;
   }
 
-  el.innerHTML = results.map(r => {
-    const name    = r.name || r.display_name.split(',')[0];
+  searchResultsData = results;
+
+  el.innerHTML = results.map((r, i) => {
+    const name     = r.name || r.display_name.split(',')[0];
     const subParts = r.display_name.split(',').slice(1, 3).join(',').trim();
-    const icon    = getPlaceIcon(r.type, r.class);
+    const icon     = getPlaceIcon(r.type, r.class);
     return `
-      <div class="search-result"
-           onclick="selectSearchResult(${r.lat}, ${r.lon},
-                    ${JSON.stringify(name)}, ${JSON.stringify(r.display_name)})">
+      <div class="search-result" onclick="selectSearchResult(${i})">
         <span class="search-result-icon">${icon}</span>
         <div style="overflow:hidden;">
           <div class="search-result-name">${escapeHtml(name)}</div>
@@ -1765,7 +1766,12 @@ function renderSearchResults(results) {
   el.style.display = 'block';
 }
 
-function selectSearchResult(lat, lng, name, fullName) {
+function selectSearchResult(index) {
+  const r    = searchResultsData[index];
+  const lat  = parseFloat(r.lat);
+  const lng  = parseFloat(r.lon);
+  const name = r.name || r.display_name.split(',')[0];
+
   closeSearchResults();
   clearSearch();
 
@@ -1786,11 +1792,9 @@ function selectSearchResult(lat, lng, name, fullName) {
 
   searchMarker = L.marker([lat, lng], { icon: pulseIcon }).addTo(map);
 
-  const shortName   = escapeHtml(name);
-  const displayName = escapeHtml(fullName);
   const addBtn = currentUser
     ? `<button class="popup-btn" style="margin-top:0.5rem;width:100%;"
-               onclick="prefillAndOpenAddLocation(${lat}, ${lng}, ${JSON.stringify(name)})">
+               onclick="prefillAndOpenAddLocation(${index})">
          + Add as Safe Space
        </button>`
     : `<div style="font-size:0.75rem;color:#6050a0;margin-top:0.4rem;">
@@ -1798,20 +1802,25 @@ function selectSearchResult(lat, lng, name, fullName) {
        </div>`;
 
   searchMarker.bindPopup(`
-    <div class="popup-name">${shortName}</div>
+    <div class="popup-name">${escapeHtml(name)}</div>
     <div class="popup-meta" style="font-size:0.75rem;line-height:1.4;margin-bottom:0.25rem;">
-      ${displayName}
+      ${escapeHtml(r.display_name)}
     </div>
     ${addBtn}
   `, { maxWidth: 240 }).openPopup();
 }
 
-function prefillAndOpenAddLocation(lat, lng, name) {
+function prefillAndOpenAddLocation(index) {
   if (!currentUser) { loginModal.show(); return; }
 
+  const r    = searchResultsData[index];
+  const lat  = parseFloat(r.lat);
+  const lng  = parseFloat(r.lon);
+  const name = r.name || r.display_name.split(',')[0];
+
   // Pre-fill the add-location form with the place's coordinates and name
-  document.getElementById('loc-lat').value  = parseFloat(lat).toFixed(6);
-  document.getElementById('loc-lng').value  = parseFloat(lng).toFixed(6);
+  document.getElementById('loc-lat').value  = lat.toFixed(6);
+  document.getElementById('loc-lng').value  = lng.toFixed(6);
   document.getElementById('loc-name').value = name;
   document.getElementById('add-location-error').classList.add('d-none');
 
