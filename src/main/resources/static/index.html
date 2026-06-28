@@ -1704,15 +1704,6 @@ function initSearch() {
 
   clearBtn.addEventListener('click', clearSearch);
 
-  // Event delegation for search results — mousedown fires before blur so the
-  // dropdown is still in the DOM when the handler runs.
-  document.getElementById('search-results').addEventListener('mousedown', e => {
-    const item = e.target.closest('.search-result');
-    if (!item) return;
-    e.preventDefault(); // keep focus on input, prevent any blur-triggered close
-    selectSearchResult(parseInt(item.dataset.index, 10));
-  });
-
   // Close dropdown when clicking outside the search container
   document.addEventListener('click', e => {
     if (!document.getElementById('search-container').contains(e.target)) {
@@ -1751,46 +1742,55 @@ async function searchPlaces(query) {
 
 function renderSearchResults(results) {
   const el = document.getElementById('search-results');
+  el.innerHTML = '';
+
   if (!results.length) {
     el.innerHTML = '<div class="search-no-results">No places found.</div>';
     el.style.display = 'block';
     return;
   }
 
+  // Keep array so prefillAndOpenAddLocation can still look up by index
   searchResultsData = results;
 
-  el.innerHTML = results.map((r, i) => {
-    const name     = r.name || r.display_name.split(',')[0];
-    const subParts = r.display_name.split(',').slice(1, 3).join(',').trim();
-    const icon     = getPlaceIcon(r.type, r.class);
-    return `
-      <div class="search-result" data-index="${i}">
-        <span class="search-result-icon">${icon}</span>
-        <div style="overflow:hidden;">
-          <div class="search-result-name">${escapeHtml(name)}</div>
-          <div class="search-result-sub">${escapeHtml(subParts)}</div>
-        </div>
-      </div>`;
-  }).join('');
+  results.forEach((r, i) => {
+    const lat  = parseFloat(r.lat);
+    const lng  = parseFloat(r.lon);
+    const name = r.name || r.display_name.split(',')[0];
+    const sub  = r.display_name.split(',').slice(1, 3).join(',').trim();
+    const icon = getPlaceIcon(r.type, r.class);
+
+    const div = document.createElement('div');
+    div.className = 'search-result';
+    div.innerHTML =
+      `<span class="search-result-icon">${icon}</span>` +
+      `<div style="overflow:hidden;">` +
+        `<div class="search-result-name">${escapeHtml(name)}</div>` +
+        `<div class="search-result-sub">${escapeHtml(sub)}</div>` +
+      `</div>`;
+
+    // Direct click listener — no delegation, no inline onclick, no index lookup
+    div.addEventListener('click', () => flyToResult(lat, lng, name, r.display_name, i));
+
+    el.appendChild(div);
+  });
+
   el.style.display = 'block';
 }
 
-function selectSearchResult(index) {
-  const r    = searchResultsData[index];
-  const lat  = parseFloat(r.lat);
-  const lng  = parseFloat(r.lon);
-  const name = r.name || r.display_name.split(',')[0];
-
+function flyToResult(lat, lng, name, displayName, index) {
+  // Close & clear the search bar
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').style.display = 'none';
   closeSearchResults();
-  clearSearch();
 
-  // Fly to the location
-  map.flyTo([lat, lng], 16, { animate: true, duration: 1.2 });
-
-  // Remove previous search marker
+  // Remove any previous search marker
   if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
 
-  // Pulsing divIcon
+  // Jump to location
+  map.setView([lat, lng], 16);
+
+  // Pulse marker
   const pulseIcon = L.divIcon({
     className: '',
     html: '<div class="search-marker-pulse"></div>',
@@ -1798,25 +1798,19 @@ function selectSearchResult(index) {
     iconAnchor: [8, 8],
     popupAnchor: [0, -12],
   });
-
   searchMarker = L.marker([lat, lng], { icon: pulseIcon }).addTo(map);
 
   const addBtn = currentUser
     ? `<button class="popup-btn" style="margin-top:0.5rem;width:100%;"
-               onclick="prefillAndOpenAddLocation(${index})">
-         + Add as Safe Space
-       </button>`
-    : `<div style="font-size:0.75rem;color:#6050a0;margin-top:0.4rem;">
-         Sign in to add this as a safe space.
-       </div>`;
+               onclick="prefillAndOpenAddLocation(${index})">+ Add as Safe Space</button>`
+    : `<div style="font-size:0.75rem;color:#6050a0;margin-top:0.4rem;">Sign in to add this as a safe space.</div>`;
 
-  searchMarker.bindPopup(`
-    <div class="popup-name">${escapeHtml(name)}</div>
-    <div class="popup-meta" style="font-size:0.75rem;line-height:1.4;margin-bottom:0.25rem;">
-      ${escapeHtml(r.display_name)}
-    </div>
-    ${addBtn}
-  `, { maxWidth: 240 }).openPopup();
+  searchMarker.bindPopup(
+    `<div class="popup-name">${escapeHtml(name)}</div>` +
+    `<div class="popup-meta" style="font-size:0.75rem;line-height:1.4;margin-bottom:0.25rem;">${escapeHtml(displayName)}</div>` +
+    addBtn,
+    { maxWidth: 240 }
+  ).openPopup();
 }
 
 function prefillAndOpenAddLocation(index) {
